@@ -1,0 +1,214 @@
+/**日本の土日祝日をベースにした関数。土日祝日は休みであることを想定。 */
+const Lib_Date_ja = {
+
+  /**土日祝日か否か */
+  isHoliday(date = new Date()){
+    if(date.getDay() === 0 || date.getDay() === 6){ // 0が日曜日、6が土曜日
+      return true;
+    }
+    const holidaysId = "ja.japanese#holiday@group.v.calendar.google.com"; //祝日取得用アドレス
+    let hol = CalendarApp.getCalendarById(holidaysId).getEventsForDay(date);
+    if(hol.length > 0){
+      return true;
+    }
+    return false;
+  },
+
+  /**引数のデータが日付データか判定 */
+  isDate(data){
+    return Object.prototype.toString.call(data) === '[object Date]' && !isNaN(data);
+  },
+
+  /**引数で与えられた日付のx日後の日付を返す
+   * xがマイナスの値の場合x日前の日付を返す
+   * setHour0AM（初期値true）がtrueの場合、戻り値の日付の時間は0時0分0秒になる
+   */
+  getXDateLater(date = new Date(), x = 0, setHour0AM = true){
+    let date_Res = new Date(new Date(date).setDate(date.getDate() + x));
+    if(setHour0AM){
+      date_Res.setHours(0,0,0,0);
+    }
+    return date_Res;
+  },
+
+  /**引数で与えられた日付のx時間後の日付を返す */
+  getXhoursLater(date = new Date(),x = 0){
+    // 現在のミリ秒を取り出す
+    let currentMilliseconds = date.getTime();
+    // 引数xに時間をミリ秒に変換する（1時間 = 3600000ミリ秒）
+    let xMilliseconds = x * 60 * 60 * 1000;
+    // 新しいミリ秒を計算する
+    let newMilliseconds = currentMilliseconds + xMilliseconds;
+    // 新しい日時をセットする
+    let date_Res = new Date(date);
+    date_Res.setTime(newMilliseconds);
+    // 新しい日時を返す
+    return date_Res;
+  },
+
+  /**引数で与えられた日付のx分後の日付を返す */
+  getXminutesLater(date = new Date(), x = 0) {
+    // 現在のミリ秒を取得
+    let currentMilliseconds = date.getTime();
+    // 引数xに分をミリ秒に変換（1分 = 60000ミリ秒）
+    let xMilliseconds = x * 60 * 1000;
+    // 新しいミリ秒を計算
+    let newMilliseconds = currentMilliseconds + xMilliseconds;
+    // 新しい日時をセット
+    let date_Res = new Date(date);
+    date_Res.setTime(newMilliseconds);
+    // 新しい日時を返す
+    return date_Res;
+  },
+
+  /**引数で与えられた日付のx日後の平日を返す
+   * xがマイナスの値の場合x日前の平日を返す
+   * setHour0AM（初期値true）がtrueの場合、戻り値の日付の時間は0時0分0秒になる
+   * ※Lib_Date内の「isHoliday」の関数に依存しているので、そちらを消さないよう注意
+   */
+  getWorkDayXDateLater(date = new Date(), x = 0, setHour0AM = true){
+    let date_Res = new Date(new Date(date).setDate(date.getDate() + x));
+    if(x > 0){
+      while(this.isHoliday(date_Res) === true){
+        date_Res = new Date(date_Res.setDate(date_Res.getDate() + 1));
+      }
+    }else if(x < 0){
+      while(this.isHoliday(date_Res) === true){
+        date_Res = new Date(date_Res.setDate(date_Res.getDate() - 1));
+      }
+    }
+    if(setHour0AM){
+      date_Res.setHours(0,0,0,0);
+    }
+    return date_Res;
+  },
+
+  /**その週内の第1営業日を返す
+   * ※Lib_Date内の「isHoliday」の関数に依存しているので、そちらを消さないよう注意
+   */
+  getFirstWorkDayOfWeek(date = new Date()){
+    const dayOfWeek = date.getDay();
+    const monday = new Date(date); 
+    monday.setDate(date.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+    if(this.isHoliday(monday) === false){
+      return monday;
+    }else{
+      let tmpDate = new Date(monday);
+      while(this.isHoliday(tmpDate)){
+        tmpDate.setDate(tmpDate.getDate()+1);
+      }
+      return tmpDate;
+    }
+  },
+
+  /**引数で与えられた日付のUnixTimeを返す
+   * GmailApp.search関数に渡す日付範囲指定などで使う
+   */
+  getUnixTime(date = new Date()){
+    return Math.floor(date.getTime() / 1000);0
+  },
+
+  /**引数で与えらえたUnixTimeの数値を日付にして返す */
+  unixTimeToDate(unixTime){
+    return new Date(unixTime * 1000);
+  },  
+
+  /**引数で与えられた日付の月初第一日を返す */
+  getFirstDayOfMonth(date = new Date()){
+    return = new Date(date.getFullYear(), date.getMonth(), 1);
+  },
+
+  /**月初第一営業日を返す
+   * ※Lib_Date内の「isHoliday」の関数に依存しているので、そちらを消さないよう注意
+   */
+  getFirstWorkDayOfMonth(date = new Date()){
+    let tmpDate = new Date(date.getFullYear(), date.getMonth(), 1);
+    while(this.isHoliday(tmpDate) === true){
+      tmpDate = new Date(new Date(tmpDate).setDate(tmpDate.getDate() + 1));
+    }
+    return tmpDate;
+  },
+
+  /**月末最終日を返す */
+  getLastDayOfMonth(date = new Date()){
+    // 引数で渡された日付データをコピー
+    let resultDate = new Date(date.getTime());
+    // 月を次の月に進めて、日付を0に設定（指定月の最終日に設定）
+    resultDate.setMonth(resultDate.getMonth() + 1, 0);
+    return resultDate;
+  },
+
+  /**月末最終営業日を返す
+   * ※Lib_Date内の「isHoliday」の関数に依存しているので、そちらを消さないよう注意
+   */
+  getLastWorkDayOfMonth(date = new Date()){
+    let tmpDate = new Date(date.getTime());
+    tmpDate.setMonth(tmpDate.getMonth() + 1, 0);
+    while(this.isHoliday(tmpDate) === true){
+      tmpDate = new Date(new Date(tmpDate).setDate(tmpDate.getDate() - 1));
+    }
+    return tmpDate;
+  },
+
+  /**月火水木金土日の曜日データの漢字を文字列で返す */
+  getKanji_DayOfWeek(date = new Date()){
+    let dayOfWeek = date.getDay();
+    let daysOfWeek = ["日", "月", "火", "水", "木", "金", "土"];
+    return daysOfWeek[dayOfWeek];
+  },
+
+  /**日本の元号を含む日付フォーマットを作成 */
+  getJapaneseWAREKIDate(date = new Date()) {
+    let warekiFormat = new Intl.DateTimeFormat("ja-JP-u-ca-japanese", {
+      era: "long",
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+      weekday: "short"
+    });
+
+    // フォーマットを適用して日付を取得
+    let formattedDate = warekiFormat.format(date);
+    // 曜日を括弧で囲むように修正
+    formattedDate = formattedDate.replace(/([日月火水木金土])$/, '（$1）');
+
+    return formattedDate;
+  },
+
+  /**入力された日の月の1か月分の日付データを配列で返す */
+  getAllDaysInMonth(targetDate = new Date()){
+    let firstDay = new Date(targetDate.getFullYear(),targetDate.getMonth(), 0);
+    firstDay.setDate(firstDay.getDate() + 1);
+    let lastDay = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
+    let lastUnix = Math.floor(lastDay.getTime() / 1000);
+    let currentDate = new Date(firstDay);
+    let currentUnix = Math.floor(currentDate.getTime() / 1000);
+    let resultArray = [];
+    while(currentUnix <= lastUnix){
+      resultArray.push(new Date(currentDate));
+      currentDate.setDate(currentDate.getDate() + 1);
+      currentUnix = Math.floor(currentDate.getTime() / 1000);
+    }
+    return resultArray;
+  },
+
+  /**入力された日の月のx回目のweekday曜日を返す（weekdayには0から6の数値入力、0が日曜） */
+  getXrdWeekday(startDate = new Date(),x = 1, weekday = 0){
+    let lastDay = new Date(startDate.getFullYear(), startDate.getMonth(), 0);
+    let targetDate = new Date(lastDay);
+    targetDate.setDate(targetDate.getDate() + 1); 
+    let countX = 0;
+    while(countX < x){
+      let targetWeek = targetDate.getDay();
+      if(targetWeek === weekday){
+        countX += 1;
+        if(countX === x){
+          return targetDate;
+        }
+      }
+      targetDate.setDate(targetDate.getDate() + 1);
+    }
+    return null;
+  },
+
+};
